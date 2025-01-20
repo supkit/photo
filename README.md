@@ -48,7 +48,6 @@ class Photo extends ApiBase
     public function search()
     {
         $data = $this->param;
-        // 暂时不验证身份
         $userInfo = get_user_by_token($data);
         $uid = $userInfo['uid'];
         $action = 'photoSearch';
