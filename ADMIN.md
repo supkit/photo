@@ -1,3 +1,141 @@
 # 管理后台授权逻辑
 
+## User Controller 调整
 
+- 文件名称 app/admin/controller/User.php
+- 删除第 84 行
+- 插入第 84 ～94 行
+
+```php
+$list = $this->logicUser->getUserList($where,'m.*,b.nickname as leader_nickname,c.update_time as grant_time','create_time desc');
+        
+$now = time();
+foreach ($list as $user) {
+    $user['is_grant_photo_search'] = 0;
+    $diff = intval($now) - intval($user['grant_time']);
+    if ($diff < 3 * 24 * 60 * 60) {
+        $user['is_grant_photo_search'] = 1;
+    }
+}
+$this->assign('list', $list);
+
+```
+- 插入第 1750～1800行
+
+```php
+public function addWhitelist()
+    {
+        $data = $this->param;
+
+        if (empty($data['uid'])) {
+            return ['code'=> 1,'msg'=>'uid 参数不能为空'];
+        }
+
+        if (empty($data['action'])) {
+            return ['code'=> 1,'msg'=>'action 参数不能为空'];
+        }
+
+        if (!preg_match('/^[a-z0-9A-Z\/]+$/', $data['action'])) {
+            return ['code'=> 1,'msg'=>'action 参数不合法'];
+        }
+
+        $action = $data['action'];
+        $uid = intval($data['uid']);
+
+        $result = $this->logicUser->addWhitelist($uid, $action);
+        if ($result[0] === RESULT_SUCCESS) {
+            return ['code' => 1, 'msg' => '操作成功', 'data' => $result];
+        }
+        return ['code' => 1001, 'msg' => '操作失败', 'data' => $result];
+    }
+    public function removeWhitelist()
+    {
+        $data = $this->param;
+
+        if (empty($data['uid'])) {
+            return ['code'=> 1,'msg'=>'uid 参数不能为空'];
+        }
+
+        if (empty($data['action'])) {
+            return ['code'=> 1,'msg'=>'action 参数不能为空'];
+        }
+
+        if (!preg_match('/^[a-z0-9A-Z\/]+$/', $data['action'])) {
+            return ['code'=> 1,'msg'=>'action 参数不合法'];
+        }
+
+        $action = $data['action'];
+        $uid = intval($data['uid']);
+
+        $result = $this->logicUser->removeWhitelist($uid, $action);
+        if ($result[0] == RESULT_SUCCESS) {
+            return ['code' => 1, 'msg' => '操作成功', 'data' => $result];
+        }
+        return ['code' => 1001, 'msg' => '操作失败', 'data' => $result];
+    }
+
+```
+
+## User Logic 调整
+
+- 删除第 36 行
+- 插入第 36 行
+```php
+public function getUserList($where = [], $field = 'm.*,b.nickname as leader_nickname,c.update_time as grant_time', $order = '', $paginate = DB_LIST_ROWS)
+```
+
+- 插入第 43 行
+```php
+[SYS_DB_PREFIX . 'user_whitelist c', 'm.uid = c.uid AND action = "photoSearch"', 'LEFT'],
+```
+- 插入第 2386～2434 行
+```php
+    public function addWhitelist($uid, $action)
+    {
+        $where = [
+            'uid' => $uid,
+            'action' => $action,
+        ];
+
+        $result = Db::name('UserWhitelist')->where($where)->find();
+        // 已授权过
+        if ($result) {
+            $grantTime = $result['update_time'];
+            $now = time();
+            // 未过期，忽略
+            if ($now - $grantTime < 3 * 24 * 60 * 60) {
+                return [RESULT_SUCCESS, '重复添加，仍在授权时间范围内'];
+            }
+            // 已过期，更新授权时间
+            $result = Db::name('UserWhitelist')->where(['id' => $result['id']])->update(['update_time'=> $now]);
+            return $result ? [RESULT_SUCCESS, '操作成功'] : [RESULT_ERROR, '操作失败'];
+        }
+
+        // 未授权过，添加授权记录
+        $timestamp = time();
+        $data = [
+            'uid' => $uid,
+            'action' => $action,
+            'create_time' => $timestamp,
+            'update_time' => $timestamp,
+        ];
+        
+        $result = Db::name('UserWhitelist')->insert($data);
+        return $result ? [RESULT_SUCCESS, '操作成功'] : [RESULT_ERROR, '操作失败'];
+    }
+    public function removeWhitelist($uid, $action)
+    {
+        $where = [
+            'uid' => $uid,
+            'action' => $action,
+        ];
+
+        $result = Db::name('UserWhitelist')->where($where)->find();
+        if (!$result) {
+            return [RESULT_SUCCESS, '未找到记录，已忽略'];
+        }
+        
+        $result = Db::name('UserWhitelist')->where(['id' => $result['id']])->update(['update_time' => 0]);
+        return $result ? [RESULT_SUCCESS, '操作成功'] : [RESULT_ERROR, '操作失败'];
+    }
+```
