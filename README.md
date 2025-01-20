@@ -24,3 +24,25 @@ CREATE TABLE `yql_photo` (
   KEY `idx_payee` (`payee`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='图片信息';
 ```
+
+```SQL
+CREATE TABLE `yql_user_action_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `uid` bigint NOT NULL DEFAULT '0' COMMENT '用户ID',
+  `action` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '操作名称',
+  `ip` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '用户IP',
+  `create_time` int NOT NULL DEFAULT '0' COMMENT '访问时间戳',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+```SQL
+CREATE TABLE `yql_user_whitelist` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `uid` bigint NOT NULL COMMENT '用户ID',
+  `action` varchar(100) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '操作名称',
+  `create_time` int NOT NULL DEFAULT '0',
+  `update_time` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户白名单表';
+```
