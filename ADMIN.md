@@ -164,7 +164,7 @@ public function getUserList($where = [], $field = 'm.*,b.nickname as leader_nick
     <ob_link><a onclick="grantSearchPhoto({$vo.uid})" class="btn"><i class="fa fa-eye"></i>授权查图</a></ob_link>
 {/if}
 - 插入第 152～200 行
-```
+```js
 function grantSearchPhoto (uid) {
         if (!confirm('确定允许该会员搜索图片吗？')){
             return false;
