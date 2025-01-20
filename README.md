@@ -1,5 +1,4 @@
-# photo
-ThinkPHP 5.0 AI图像识别与检索
+# ThinkPHP 5.0 AI图像识别与检索
 
 ## 一、图像识别
 
