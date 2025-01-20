@@ -243,3 +243,68 @@ class Photo extends ApiBase
 }
 
 ```
+
+## 新建一个Logic
+
+文件名称：Photo.php
+
+```php
+<?php
+
+namespace app\api\logic;
+
+use think\Db;
+
+class Photo extends ApiBase
+{
+    public function searchPhotos($transferor, $payee, $amountMin, $amountMax, $startTime, $endTime, $content)
+    {
+        $db = Db::name('Photo');
+        $where = [];
+
+        if (!empty($transferor)) {
+            $where['transferor'] = ['like', '%'.$transferor.'%'];
+        }
+
+        if (!empty($payee)) {
+            $where['payee'] = ['like', '%'.$payee.'%'];
+        }
+
+        if (!empty($amountMin)) {
+            $where['amount'] = ['>=', $amountMin];
+        }
+
+        if (!empty($amountMax)) {
+            $where['amount'] = ['<=', $amountMax];
+        }
+
+        if (!empty($content)) {
+            $where['content'] = ['like', '%'.$content.'%'];
+        }
+
+        $field = ['id', 'key', 'transferor', 'payee', 'amount', 'date_time', 'content'];
+        $limit = 20;
+
+        if (!empty($startTime)) {
+            $db->where('date_time', '>=', $startTime);
+        }
+
+        if (!empty($endTime)) {
+            $db->where('date_time', '<=', $endTime);
+        }
+
+        $db->where($where);
+        $records = $db->field($field)->limit($limit)->select();
+
+        return $records;
+    }
+
+    public function findFileWthKey($key)
+    {
+        $where['key'] = $key;
+        $data = Db::name("Photo")->where($where)->find();
+        return $data;
+    }
+}
+
+```
