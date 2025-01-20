@@ -22,7 +22,7 @@ CREATE TABLE `yql_photo` (
   KEY `idx_file_key` (`key`),
   KEY `idx_transferor` (`transferor`),
   KEY `idx_payee` (`payee`)
-) ENGINE=InnoDB AUTO_INCREMENT=33784 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='图片信息';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='图片信息';
 ```
 ## 新建一个Controller
 
