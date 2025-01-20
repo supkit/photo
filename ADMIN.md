@@ -77,7 +77,7 @@ public function addWhitelist()
 ```
 
 ## User Logic 调整
-
+- 文件名 app/admin/logic/User.php
 - 删除第 36 行
 - 插入第 36 行
 ```php
@@ -137,5 +137,80 @@ public function getUserList($where = [], $field = 'm.*,b.nickname as leader_nick
         
         $result = Db::name('UserWhitelist')->where(['id' => $result['id']])->update(['update_time' => 0]);
         return $result ? [RESULT_SUCCESS, '操作成功'] : [RESULT_ERROR, '操作失败'];
+    }
+```
+
+## User View
+
+- 文件名：app/admin/view/user/user_list.html
+- 插入第 53 行
+```php
+<th>是否已授权查询图片</th>
+```
+- 插入第 93 ～ 99 行
+```
+    {if $vo.is_grant_photo_search == 1}
+        是
+    {else/}
+        否
+    {/if}
+</td>
+<td>
+```
+- 插入第 101～106 行
+{if $vo.is_grant_photo_search == 1}
+    <ob_link><a onclick="revokeSearchPhoto({$vo.uid})" class="btn"><i class="fa fa-eye"></i>回收查图权限</a></ob_link>
+{else/}
+    <ob_link><a onclick="grantSearchPhoto({$vo.uid})" class="btn"><i class="fa fa-eye"></i>授权查图</a></ob_link>
+{/if}
+- 插入第 152～200 行
+```
+function grantSearchPhoto (uid) {
+        if (!confirm('确定允许该会员搜索图片吗？')){
+            return false;
+        }
+        $.ajax({
+            type: "POST",
+            url: "{:url('addWhitelist')}",
+            dataType: "json",
+            data: { action: "photoSearch", uid },
+            success: function (data) {
+                if (data.code != 1) {
+                    toast.error(data.msg);
+                } else {
+                    toast.success(data.msg);
+                    setTimeout(function () {
+                        parent.location.reload();
+                    }, 1000);
+                }
+            },
+            error: function (a, b, c) {
+                showmsg('系统错误');
+            }
+        })
+    }
+    function revokeSearchPhoto (uid) {
+        if (!confirm('确定回收该会员搜索图片的权限吗？')){
+            return false;
+        }
+        $.ajax({
+            type: "POST",
+            url: "{:url('removeWhitelist')}",
+            dataType: "json",
+            data: { action: "photoSearch", uid },
+            success: function (data) {
+                if (data.code != 1) {
+                    toast.error(data.msg);
+                } else {
+                    toast.success(data.msg);
+                    setTimeout(function () {
+                        parent.location.reload();
+                    }, 1000);
+                }
+            },
+            error: function (a, b, c) {
+                showmsg('系统错误');
+            }
+        })
     }
 ```
