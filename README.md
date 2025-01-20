@@ -32,7 +32,7 @@ CREATE TABLE `yql_user_action_log` (
   `ip` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '' COMMENT '用户IP',
   `create_time` int NOT NULL DEFAULT '0' COMMENT '访问时间戳',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户操作日志';
 ```
 
 ```SQL
