@@ -6,6 +6,10 @@
 
 ## 二、数据库表结构
 
+1、在宝塔面板上打开phpMyAdmin管理面板；
+2、在phpMyAdmin 选择 「xmpzkj_cn」这个数据；
+3、在phpMyAdmin「SQL」功能菜单下分别执行以下建表语句，完成表结构的创建。
+
 ```SQL
 CREATE TABLE `yql_photo` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
