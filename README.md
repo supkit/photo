@@ -45,5 +45,5 @@ CREATE TABLE `yql_user_whitelist` (
   `create_time` int NOT NULL DEFAULT '0',
   `update_time` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户白名单表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户白名单表';
 ```
