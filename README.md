@@ -6,6 +6,8 @@
 
 ## 二、数据库表结构
 
+> 操作前请做好代码和数据库的备份
+
 ```SQL
 CREATE TABLE `yql_photo` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
