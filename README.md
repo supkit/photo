@@ -5,7 +5,7 @@
 
 - 在 `app/admin/view/user/user_edit.html` 文件表单中增加相关配置项，具体在第 29 行处增加如下代码：
 
-```
+```html
 <div class="col-md-6">
   <div class="form-group">
     <label>VIP</label>
@@ -28,7 +28,7 @@
 
 - 在 `app/admin/view/user/user_edit.html` 文件最后添加如下代码：
 
-```
+```html
 <script>
   $(".is-vip-select").on("change",function(){
     const value = $(".is-vip-select").val();
@@ -45,7 +45,7 @@
 
 编辑 `app/admin/logic/User.php` 文件中的 `userEdit` 方法（文件第 300 行位置），将函数代码更新为如下：
 
-```
+```php
     public function userEdit($data = [])
     {
         if (empty($data['company'])) {
