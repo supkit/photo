@@ -109,6 +109,6 @@ static $notify_url = 'http://www.xmpzkj.cn/weixin_notify.php/pay/wxnotify';
 
 替换为
 
-```
+```php
 static $notify_url = 'http://dev.xmpzkj.cn/weixin_notify.php/pay/wxnotify';
 ```
