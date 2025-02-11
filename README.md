@@ -101,5 +101,12 @@
 
 ## 3. 修复App微信支付回调问题
 
-- 文件路径：app/common/service/pay/driver/Wxpay.php
-- 将第23行 `static $notify_url = 'http://www.xmpzkj.cn/weixin_notify.php/pay/wxnotify';` 替换为 `static $notify_url = 'http://dev.xmpzkj.cn/weixin_notify.php/pay/wxnotify';`
+- 文件路径：app/common/service/pay/driver/Wxpay.php第23行
+
+````php
+static $notify_url = 'http://www.xmpzkj.cn/weixin_notify.php/pay/wxnotify';
+```
+替换为
+```
+static $notify_url = 'http://dev.xmpzkj.cn/weixin_notify.php/pay/wxnotify';
+```
