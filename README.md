@@ -1,12 +1,12 @@
 # App微信支付回调设置会员
 
-## 1. 在 `app/common/logic/OrderPay.php` 第98行增加以下代码：
+- 1. 在 `app/common/logic/OrderPay.php` 第98行增加以下代码：
 
 ```php
 logic('api/User')->setVip($order_info['uid']);
 ```
 
-## 2. 在 `app/api/logic/User.php` 文件末尾，增加下面这个方法，代码如下：
+- 2. 在 `app/api/logic/User.php` 文件末尾，增加下面这个方法，代码如下：
 
 ```php
 public function setVip($uid)
