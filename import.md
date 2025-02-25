@@ -1,9 +1,8 @@
-# 导入需求
+# 账单导入
 
-## 后台API
+## 后端改动
 
-### Controller
-> 在 xxx 目录下新建文件 Import.php并写入一下代码：
+##### 1. 在 `app/api/controller` 目录下新建文件 `Import.php`，文件内容如下：
 
 ```php
 <?php
@@ -150,8 +149,7 @@ class Import extends ApiBase
 }
 ```
 
-### Login
-> 在 xxx 目录下新建文件 Import.php并写入一下代码：
+##### 2. 在 `app/api/logic` 目录下新建文件 `Import.php`，文件内容如下：
 
 ```php
 <?php
@@ -206,12 +204,7 @@ class Import extends ApiBase
             }
         }
 
-//        echo  '0:'.date('Y-m-d H:i:s');
-//        echo PHP_EOL;
         foreach ($rows as $n => $row) {
-//            echo  $n.':0:'.date('Y-m-d H:i:s');
-//            echo PHP_EOL;
-
             // 必须列校验
             try {
                 $this->checkRowMust($pixHead, $row);
@@ -748,3 +741,247 @@ class Import extends ApiBase
     }
 }
 ```
+
+
+## 前端改动
+
+##### 1. 在 `platforms/h5/assembly/components` 目录下新建文件 `BillingFileImport.vue`，文件内容如下：
+
+```vue
+<template>
+  <div>
+    <el-upload
+      class="file_import_upload"
+      style="position: absolute; right: 145px; top: 10px"
+      ref="upload"
+      action="#"
+      accept="application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      :file-list="fileList"
+      :show-file-list="false"
+      :on-change="onFileChange"
+      :before-upload="onBeforeUpload"
+      :http-request="handleUpload"
+    >
+      <el-button type="info" icon="el-icon-document" size="medium" @click=""
+        >导入报表</el-button
+      >
+      <div slot="tip" class="el-upload__tip" style="display: none"></div>
+    </el-upload>
+
+    <!-- 导入结果弹框 -->
+    <el-dialog
+      title="导入结果"
+      :visible.sync="dialogVisible"
+      @close="handleCloseDialog"
+    >
+      <div>
+        <div>
+          共
+          <span style="font-weight: bold; padding: 0 4px">{{
+            totalCount
+          }}</span>
+          条数据。其中，导入成功
+          <span style="font-weight: bold; padding: 0 4px; color: green">{{
+            successCount
+          }}</span
+          >条，导入失败（或跳过）
+          <span style="font-weight: bold; padding: 0 4px; color: red">{{
+            failItems.length
+          }}</span
+          >条。
+        </div>
+        <div
+          v-if="failItems.length > 0"
+          style="margin-top: 12px; max-height: 400px; overflow: scroll"
+        >
+          <div style="font-weight: bold; margin-top: 8px; margin-bottom: 8px">
+            导入失败（或跳过）原因：
+          </div>
+          <div v-for="(item, index) in failItems" :key="index">
+            <p>第 {{ item.line }} 行： {{ item.message }}</p>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="closeDialog">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      fileList: [],
+      dialogVisible: false,
+
+      // 导入结果
+      totalCount: 0,
+      successCount: 0,
+      failItems: [],
+    };
+  },
+
+  created() {
+    console.log("Init: ", this.Init);
+  },
+
+  methods: {
+    openResultDialog() {
+      this.dialogVisible = true;
+    },
+
+    closeDialog() {
+      this.dialogVisible = false;
+      this.handleCloseDialog();
+    },
+
+    handleCloseDialog() {
+      // 新导入了数据，刷新页面
+      if (this.successCount > 0) {
+        window.location.reload();
+      }
+    },
+
+    showErrorModal(options) {
+      uni.showModal({
+        title: options?.title || "提示",
+        content: options?.content || "出错了~",
+        showCancel: false,
+      });
+    },
+
+    onBeforeUpload(file) {
+      console.log("beforeUpload:", file);
+
+      const isExcel = [
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ].includes(file.type);
+      if (!isExcel) {
+        alert("只能导入Excel文件!");
+        return false;
+      }
+
+      const isLt10M = file.size / 1024 / 1024 < 10;
+      if (!isLt10M) {
+        alert("上传文件最大不能超过 10 M!");
+        return false;
+      }
+
+      return isExcel && isLt10M;
+    },
+
+    handleUpload(param) {
+      const self = this;
+      const projectId = this.Init.tid;
+
+      console.log("handleUpload:", param, projectId);
+
+      uni.showModal({
+        title: "提示",
+        content: "确定要导入账单报表数据？",
+        cancelText: "取消",
+        confirmText: "确定",
+        success: function (res) {
+          if (!res.confirm) {
+            return;
+          }
+
+          const userToken = uni.getStorageSync("user_token");
+
+          uni.showLoading({ title: "文件导入中...", mask: true });
+
+          uni.uploadFile({
+            url: "https://dev.xmpzkj.cn/api.php/import/bill",
+            name: "file",
+            file: param.file,
+            formData: {
+              tid: projectId,
+              user_token: userToken,
+            },
+            success: (resp) => {
+              console.log("Upload Success:", resp);
+              let res = {};
+              try {
+                res = JSON.parse(resp?.data);
+                // 成功
+                if (res.code == "0000") {
+                  const totalCount = res.data?.total || 0;
+                  const successCount = res.data?.success || 0;
+                  const failItems = res.data?.fail || [];
+
+                  self.totalCount = totalCount;
+                  self.successCount = successCount;
+                  self.failItems = failItems;
+
+                  self.$nextTick(() => {
+                    self.openResultDialog();
+                  });
+                } else {
+                  uni.hideLoading();
+                  self.showErrorModal({
+                    title: "导入失败",
+                    content: res?.msg,
+                  });
+                }
+              } catch (err) {
+                // ignore
+                self.showErrorModal({
+                  title: "导入失败",
+                  content: err?.message,
+                });
+              }
+            },
+            fail: (err) => {
+              console.log("import error：", err);
+              self.showErrorModal({
+                title: "导入失败",
+                content: err?.message,
+              });
+            },
+            complete: () => {
+              uni.hideLoading();
+            },
+          });
+        },
+      });
+    },
+
+    async onFileChange(file) {
+      //清除文件对象
+      // this.$refs.upload.clearFiles();
+      // 重新手动赋值filstList， 免得自定义上传成功了, 而fileList并没有动态改变， 这样每次都是上传一个对象
+      // this.fileList = [{ name: file.name, url: file.url }];
+    },
+  },
+};
+</script>
+```
+
+##### 2. 修改文件 `platforms/h5/assembly/components/sxmax.vue`，在其中导入并使用上一步中创建的组件：
+
+1. 第 389 行处，导入组件:
+
+```javascript
+import BillingFileImport from './BillingFileImport';
+```
+
+2. 第 392 行处，导出组件（添加在`export default {` 代码下方）：
+
+```javascript
+components: {
+  BillingFileImport,
+},
+```
+
+3. 第 14 行处，使用组件：
+
+```javascript
+<BillingFileImport />
+```
+
+##### 3. hbuilder 中构建并部署
+
+项目目录鼠标右键：`发行 - 网站- PC Web或手机H5` 进行构建，完成后将 `unpackage/dist/build/web` 目录下的`static`目录和`index.html`文件上传到服务器根目录即完成部署。
