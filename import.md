@@ -204,7 +204,12 @@ class Import extends ApiBase
             }
         }
 
+//        echo  '0:'.date('Y-m-d H:i:s');
+//        echo PHP_EOL;
         foreach ($rows as $n => $row) {
+//            echo  $n.':0:'.date('Y-m-d H:i:s');
+//            echo PHP_EOL;
+
             // 必须列校验
             try {
                 $this->checkRowMust($pixHead, $row);
@@ -253,7 +258,7 @@ class Import extends ApiBase
             $note = $row[12];
             // 13-附件序列号 不需要
             // 审批时间
-            $finishTime = strtotime($row[14]);
+            $createTime = strtotime($row[14]);
             // 收付款时间
             $payTime = strtotime($row[15]);
             // 单位
@@ -312,6 +317,7 @@ class Import extends ApiBase
                 'line' => $n + 8,    //临时记录行号，插入DB时移除
                 'index' => $index,    //临时记录序号，插入DB时移除
                 'commonBillNum' => $commonBillNum,  //临时记录记账单编号，插入DB时移除
+                'sortBillNum' => substr($billNum, 1), // 排序列
                 'uid' => $uid,
                 'money' => $money,
                 'type' => $type,
@@ -326,7 +332,7 @@ class Import extends ApiBase
                 'tid' => $tid,
                 'gid' => $checkData['gid'],
                 'note' => $note,
-                'create_time' => $finishTime,
+                'create_time' => $createTime,
                 'pay_note' => $payNote,
                 'name' => $name,
                 'tuid' => $checkData['tuid'],
@@ -334,7 +340,7 @@ class Import extends ApiBase
                 'three_id' => $checkData['three_id'],
                 'four_id' => $checkData['four_id'],
                 'one_id' => $checkData['one_id'],
-                'finish_time' => $finishTime,
+                'finish_time' => $createTime,
                 'num' => $num,
                 'price' => $price,
                 'uint' => $uint,
@@ -353,18 +359,28 @@ class Import extends ApiBase
 
         }
 
+
         // 按bill_num排序
         usort($normalBillRecords, function($a, $b) {
-            return $a['bill_num'] - $b['bill_num'];
-        });
-        usort($otherBillRecords, function($a, $b) {
-            return $a['bill_num'] - $b['bill_num'];
+            if ($a['sortBillNum'] == $b['sortBillNum']) {
+                return 0;
+            }
+            return ($a['sortBillNum'] < $b['sortBillNum']) ? -1 : 1;
         });
 
+        usort($otherBillRecords, function($a, $b) {
+            if ($a['sortBillNum'] == $b['sortBillNum']) {
+                return 0;
+            }
+            return ($a['sortBillNum'] < $b['sortBillNum']) ? -1 : 1;
+        });
 
         $success = 0;
-        $tidbillNumBid = array();
-        $tidbillNumFinalMoney = array();
+        $tidBillNumBid = array();
+        $tidBillNumFinalMoney = array();
+        $dayTimeCountMap = array();
+
+
 
         // normal执行写入操作
         foreach ($normalBillRecords as $value) {
@@ -378,12 +394,20 @@ class Import extends ApiBase
                 continue;
             }
 
+            if(array_key_exists($value['create_time'], $dayTimeCountMap)){
+                $value['finish_time'] = $dayTimeCountMap[$value['create_time']] + 1;
+            }
+            $dayTimeCountMap[$value['create_time']] = $value['finish_time'];
+
             unset ($value['line']);
             unset ($value['index']);
             unset ($value['commonBillNum']);
-            $lastInsId = Db::name('Bill')->insert($value, false, true);
-            $tidbillNumBid[$value['tid'].'_'.$value['bill_num']] = $lastInsId;
-            $tidbillNumFinalMoney[$value['tid'].'_'.$value['bill_num']] = $value['final_money'];
+            unset ($value['sortBillNum']);
+            $lastInsId = Db::name('Bill')->insertGetId($value);
+            $this->addBillProfile($lastInsId, $value['create_time']);
+
+            $tidBillNumBid[$value['tid'].'_'.$value['bill_num']] = $lastInsId;
+            $tidBillNumFinalMoney[$value['tid'].'_'.$value['bill_num']] = $value['final_money'];
             $tidBillNums[] = $value['tid'].'_'.$value['bill_num'];
             $success ++;
         }
@@ -402,33 +426,45 @@ class Import extends ApiBase
                 continue;
             }
 
-            if (array_key_exists($value['tid']."_".$commonBillNum,$tidbillNumBid)) {
+            if (array_key_exists($value['tid']."_".$commonBillNum,$tidBillNumBid)) {
                 // 根normal记录存在,更新type_bid
-                $value['type_bid'] = $tidbillNumBid[$value['tid'].'_'.$commonBillNum];
+                $value['type_bid'] = $tidBillNumBid[$value['tid'].'_'.$commonBillNum];
             } else {
                 // 根normal记录不存在，不导入
                 $fail[] = ['line' => $value['line'], 'message' => '[155]:序号:'.$value['index'].', 根normal记录不存在,不能导入'.$value['type'].'记录'];
                 continue;
             }
+
+            if (array_key_exists($value['create_time'], $dayTimeCountMap)) {
+                $value['finish_time'] = $dayTimeCountMap[$value['create_time']] + 1;
+            }
+            $dayTimeCountMap[$value['create_time']] = $value['finish_time'];
+
             unset ($value['line']);
             unset ($value['index']);
             unset ($value['commonBillNum']);
-            $lastInsId = Db::name('Bill')->insert($value, false, true);
+            unset ($value['sortBillNum']);
+            $lastInsId = Db::name('Bill')->insertGetId($value);
+            $this->addBillProfile($lastInsId, $value['create_time']);
+
             $tidBillNums[] = $value['tid'].'_'.$value['bill_num'];
-            if($tidbillNumFinalMoney[$value['tid'].'_'.$commonBillNum] > $value['final_money']){
+            if($tidBillNumFinalMoney[$value['tid'].'_'.$commonBillNum] > $value['final_money']){
                 $update_data = [
                     'final_money' => $value['final_money'],
                 ];
                 Db::name('Bill')->where(
-                    ['bid' => $tidbillNumBid[$value['tid'].'_'.$commonBillNum]]
+                    ['bid' => $tidBillNumBid[$value['tid'].'_'.$commonBillNum]]
                 )->update($update_data);
-                $tidbillNumFinalMoney[$value['tid'].'_'.$commonBillNum] = $value['final_money'];
+                $tidBillNumFinalMoney[$value['tid'].'_'.$commonBillNum] = $value['final_money'];
             }
             $success ++;
         }
 
         usort($fail, function($a, $b) {
-            return $a['line'] - $b['line'];
+            if ($a['line'] == $b['line']) {
+                return 0;
+            }
+            return ($a['line'] < $b['line']) ? -1 : 1;
         });
 
         return [
@@ -479,7 +515,7 @@ class Import extends ApiBase
     private function checkRowMust($pixHead, $row)
     {
         // 不能为空列下标
-        $mustRowNum = [0,1,5,6,7,8,9,10,11,14,15,24,31,48];
+        $mustRowNum = [0,1,6,7,8,9,10,11,14,15,24,31,48];
         foreach ($mustRowNum as $n => $num) {
             $tem = preg_replace('/\s+/', '', $row[$num]);
             if ($tem == '') {
@@ -640,6 +676,9 @@ class Import extends ApiBase
 
     private function formatNumber($number)
     {
+        if ($number == '') {
+            $number = 0;
+        }
         // 将负数转换为正数
         $positiveNumber = abs($number);
         $formattedNumber = number_format($positiveNumber, 2, '.', '');
@@ -739,6 +778,39 @@ class Import extends ApiBase
         }
 
     }
+
+    /**
+     * 校验当前登录用户、项目同文件是否一致
+     * @param $bid
+     * @param $time
+     * @param array $param
+     * @return void
+     */
+    private function addBillProfile($bid, $time, $param = array())
+    {
+        $bill_profile_add = [
+            'bid' => $bid,
+            'is_invoice' => !empty($param['is_invoice']) ? $param['is_invoice'] : 0,
+            'sale_type' => !empty($param['sale_type']) ? $param['sale_type'] : 0,
+            'invoice_type' => !empty($param['invoice_type']) ? $param['invoice_type'] : 0,
+            'invoice_time' => !empty($param['invoice_time']) ? $param['invoice_time'] : 0,
+            'invoice_no' => !empty($param['invoice_no']) ? $param['invoice_no'] : 0,
+            'receive_name' => !empty($param['receive_name']) ? $param['receive_name'] : '',
+            'receive_phone' => !empty($param['receive_phone']) ? $param['receive_phone'] : '',
+            'receive_address' => !empty($param['receive_address']) ? $param['receive_address'] : '',
+            'receive_type' => !empty($param['receive_type']) ? $param['receive_type'] : '',
+            'receive_bank_name' => !empty($param['receive_bank_name']) ? $param['receive_bank_name'] : '',
+            'receive_bank_no' => !empty($param['receive_bank_no']) ? $param['receive_bank_no'] : '',
+            'receive_alipay_no' => !empty($param['receive_alipay_no']) ? $param['receive_alipay_no'] : '',
+            'receive_wechat_no' => !empty($param['receive_wechat_no']) ? $param['receive_wechat_no'] : '',
+            'invoice_ids' => !empty($param['invoice_ids']) ? $param['invoice_ids'] : '',
+            'invoice_note' => !empty($param['invoice_note']) ? $param['invoice_note'] : '',
+            'invoice_rate' => !empty($param['invoice_rate']) ? $param['invoice_rate'] : '',
+            'create_time' => $time,
+        ];
+        $bpid = Db::name('BillProfile')->insertGetId($bill_profile_add);
+    }
+
 }
 ```
 
