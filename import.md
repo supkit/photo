@@ -204,11 +204,10 @@ class Import extends ApiBase
             }
         }
 
-//        echo  '0:'.date('Y-m-d H:i:s');
-//        echo PHP_EOL;
+        $uid = $tokeUid;
+        $tid = $nowTid;
+
         foreach ($rows as $n => $row) {
-//            echo  $n.':0:'.date('Y-m-d H:i:s');
-//            echo PHP_EOL;
 
             // 必须列校验
             try {
@@ -217,18 +216,6 @@ class Import extends ApiBase
                 $fail[] = ['line' => $n + 8, 'message' => '[' . $e->getCode() . ']:'. $e->getMessage()];
                 continue;
             }
-
-            // 解析下载链接
-            try {
-                $last = $this->parseLastCell($row);
-            } catch (ImportException $e) {
-                $fail[] = ['line' => $n + 8, 'message' => $e->getCode() . ':'. $e->getMessage()];
-                continue;
-            }
-
-            $bid = $last['bid'];
-            $uid = $last['uid'];
-            $tid = $last['tid'];
 
             // 序号
             $index = $row[0];
@@ -285,7 +272,7 @@ class Import extends ApiBase
             try {
                 $checkData = $this->checkRowData(
                     $tidItemMap,$tidItemGroupMap,$tidItemUserMap,$tidItemTypeMap, $userMap,
-                    $index, $bid, $uid, $tid, $billNum, $gidName, $buidName, $uidName,
+                    $index, $uid, $tid, $billNum, $gidName, $buidName, $uidName,
                     $billTypeName, $billTypeName3, $billTypeName4
                 );
             } catch (ImportException $e) {
@@ -359,7 +346,6 @@ class Import extends ApiBase
 
         }
 
-
         // 按bill_num排序
         usort($normalBillRecords, function($a, $b) {
             if ($a['sortBillNum'] == $b['sortBillNum']) {
@@ -379,7 +365,6 @@ class Import extends ApiBase
         $tidBillNumBid = array();
         $tidBillNumFinalMoney = array();
         $dayTimeCountMap = array();
-
 
 
         // normal执行写入操作
@@ -475,38 +460,6 @@ class Import extends ApiBase
     }
 
     /**
-     * 解析最后一列数据
-     * @param $row
-     * @return array
-     * @throws ImportException
-     */
-    private function parseLastCell($row)
-    {
-        if (empty($row[48])) {
-            throw new ImportException(100, '序号:'.$row[0].', 列[下载链接]数据不能为空。');
-        }
-
-        $matched = preg_match('/is_export_pdf=1&bid=([0-9]+)&uid=([0-9]+)&tid=([0-9]+)/', $row[48], $matches);
-        if (!$matched) {
-            throw new ImportException(101, '序号:'.$row[0].', 列[下载链接]数据格式错误。');
-        }
-
-        if (!is_array($matches) || count($matches) != 4) {
-            throw new ImportException(101, '序号:'.$row[0].', 列[下载链接]数据格式错误。');
-        }
-
-        $bid = intval($matches[1]);
-        $uid = intval($matches[2]);
-        $tid = intval($matches[3]);
-
-        if ($bid == 0 || $uid == 0 || $tid == 0) {
-            throw new ImportException(101, '序号:'.$row[0].', 列[下载链接]数据解析关键字段异常。');
-        }
-
-        return ['bid' => $bid, 'uid' => $uid, 'tid' => $tid];
-    }
-
-    /**
      * 不能为空字段校验
      * @param $pixHead
      * @param $row
@@ -532,7 +485,6 @@ class Import extends ApiBase
      * @param $tidItemTypeMap
      * @param $userMap
      * @param $index int 序号
-     * @param $bid int 账单ID
      * @param $uid int 用户ID
      * @param $tid int 项目ID
      * @param $billNum string 账单编号
@@ -550,7 +502,7 @@ class Import extends ApiBase
      */
     private function checkRowData(
         &$tidItemMap, &$tidItemGroupMap, &$tidItemUserMap, &$tidItemTypeMap, &$userMap,
-        $index, $bid, $uid, $tid, $billNum, $gidName, $buidName, $userName,
+        $index, $uid, $tid, $billNum, $gidName, $buidName, $userName,
         $billTypeName, $billTypeName3, $billTypeName4
     )
     {
@@ -764,17 +716,17 @@ class Import extends ApiBase
         }
 
         if ($nowTid != $tid) {
-            $nowItemName = '';
-            $dataItemName = '';
-            $nowItem = Db::name('Item')->where(['uid' => $uid, 'tid' => $nowTid])->find();
-            if (!empty($nowItem)) {
-                $nowItemName = $nowItem['name'];
-            }
             $dataItem = Db::name('Item')->where(['uid' => $uid, 'tid' => $tid])->find();
+            // 文件中的项目id存在，和当前项目不一致，报错提示项目不对；如果文件中的项目id本身不存在了，则导入到当前项目
             if (!empty($dataItem)) {
                 $dataItemName = $dataItem['name'];
+                $nowItemName = '';
+                $nowItem = Db::name('Item')->where(['uid' => $uid, 'tid' => $nowTid])->find();
+                if (!empty($nowItem)) {
+                    $nowItemName = $nowItem['name'];
+                }
+                throw new ImportException('01006', '当前选择项目[' . $nowItemName . ']与导入表格的项目[' . $dataItemName . ']不是同一个项目。');
             }
-            throw new ImportException('01006', '当前选择项目[' . $nowItemName . ']与导入表格的项目[' . $dataItemName . ']不是同一个项目。');
         }
 
     }
